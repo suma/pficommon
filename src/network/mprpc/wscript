@@ -1,3 +1,18 @@
+import Options
+
+def options(opt):
+  opt.add_option('--enable-libevent',
+                 action = 'store_true',
+                 default = False,
+                 help = 'enable libevent with mprpc')
+
+def configure(conf):
+  if Options.options.enable_libevent:
+    # check libevent 2.x
+    if not conf.check_cfg(package='libevent', args='--cflags --libs', mandatory = False):
+      # check event.h(1.x and 2.x)
+      conf.check_cxx(header_name = 'event.h', lib = 'event', uselib_store = 'LIBEVENT', mandatory = Options.options.enable_libevent)
+
 def build(bld):
   bld.install_files('${HPREFIX}/network/mprpc', [
       'argument.h',
@@ -12,7 +27,7 @@ def build(bld):
       'socket.h',
       ])
 
-  bld.shlib(
+  t = bld.shlib(
     source = [
       'object_stream.cpp',
       'rpc_client.cpp',
@@ -22,4 +37,9 @@ def build(bld):
       ],
     target = 'pficommon_network_mprpc',
     vnum = bld.env['VERSION'],
-    use = 'pficommon_concurrent pficommon_network_base MSGPACK')
+    includes = '.',
+    use = ['pficommon_concurrent', 'pficommon_network_base', 'MSGPACK'])
+
+  # link libevent
+  if ('HAVE_EVENT' in bld.env) or ('HAVE_EVENT_H' in bld.env):
+    t.use.append('LIBEVENT')

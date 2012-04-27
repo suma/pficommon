@@ -32,8 +32,16 @@
 #ifndef INCLUDE_GUARD_PFI_NETWORK_MPRPC_RPC_SERVER_H_
 #define INCLUDE_GUARD_PFI_NETWORK_MPRPC_RPC_SERVER_H_
 
+#include "../../pfi-config.h"
+
 #include <map>
 #include <string>
+
+// TODO: add include path to wscript
+#if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
+#include "../../concurrent/pcbuf.h"
+#include <event.h>
+#endif
 
 #include "../../lang/shared_ptr.h"
 #include "../../lang/function.h"
@@ -66,6 +74,7 @@ public:
   rpc_server(double timeout_sec);
   ~rpc_server();
 
+  void set_event_interval(double event_internal_sec);
   bool serv(uint16_t port, int nthreads);
   bool running() const;
   void stop();
@@ -77,6 +86,15 @@ public:
 private:
   double timeout_sec;
   volatile bool serv_running;
+
+#if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
+  double event_interval_sec;
+  struct event ev_accept;
+  struct event_base *ev_base;
+  pfi::concurrent::pcbuf<int> accept_queue;
+
+  static void accept_event(int fd, short event, void *arg);
+#endif
 
   void add(const std::string &name,
       pfi::lang::shared_ptr<invoker_base> invoker);

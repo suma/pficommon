@@ -81,6 +81,7 @@ static void server_thread(testrpc_server *ser)
 TEST(mprpc, mprpc_test)
 {
   testrpc_server ser(kServerTimeout);
+  ser.set_event_interval(0.01);
   thread t(pfi::lang::bind(&server_thread, &ser));
   t.start();
 
@@ -154,6 +155,7 @@ TEST(mprpc, mprpc_test)
 TEST(mprpc, mprpc_server_timeout_test)
 {
   testrpc_server ser(kTestTimeout);
+  ser.set_event_interval(0.01);
   thread t(pfi::lang::bind(&server_thread, &ser));
   t.start();
 
@@ -226,6 +228,7 @@ static void struct_server_thread(test_struct_rpc_server *ser)
 TEST(mprpc, test_struct)
 {
   test_struct_rpc_server ser(kServerTimeout);
+  ser.set_event_interval(0.01);
   thread t(pfi::lang::bind(&struct_server_thread, &ser));
   t.start();
 

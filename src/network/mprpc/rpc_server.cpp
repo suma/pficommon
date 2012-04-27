@@ -32,6 +32,7 @@
 #include "rpc_server.h"
 
 #include <vector>
+#include <algorithm>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -39,9 +40,17 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 
+
 #include "../../network/socket.h"
 #include "../../system/syscall.h"
 #include "../../concurrent/thread.h"
+
+#if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
+namespace {
+const double kEventLoopDefaultIntervalSec = 5.0;
+const double kEventLoopMinimumIntervalSec = 0.01;
+}
+#endif
 
 namespace pfi {
 namespace network {
@@ -65,14 +74,32 @@ bool basic_server::create(uint16_t port, int backlog)
   return sock.listen(port, backlog);
 }
 
-
 rpc_server::rpc_server(double timeout_sec) :
   timeout_sec(timeout_sec),
   serv_running(false)
+#if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
+  , event_interval_sec(kEventLoopDefaultIntervalSec)
+  , ev_base(NULL)
+  , accept_queue(4096)
+#endif
 { }
 
-rpc_server::~rpc_server() { }
+rpc_server::~rpc_server()
+{
+#if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
+  if (ev_base) {
+    event_base_free(ev_base);
+  }
+#endif
+}
 
+void rpc_server::set_event_interval(double interval_sec)
+{
+  // set interval seconds of event loop and pcbuf
+#if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
+  event_interval_sec = std::max(kEventLoopMinimumIntervalSec, interval_sec);
+#endif
+}
 
 bool rpc_server::serv(uint16_t port, int nthreads)
 {
@@ -91,6 +118,23 @@ bool rpc_server::serv(uint16_t port, int nthreads)
     if (!ths[i]->start()) return false;
   }
 
+#if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
+  ev_base = ::event_base_new();
+  if (!ev_base)
+    return false;
+
+  // divide seconds to seconds[time_t] and microsecondes[suseconds_t]
+  timeval ev_timeout;
+  ev_timeout.tv_sec = static_cast<time_t>(event_interval_sec);
+  ev_timeout.tv_usec = static_cast<suseconds_t>((event_interval_sec - ev_timeout.tv_sec) * 1e+6);
+
+  // event loop with timeout
+  while (serv_running) {
+    ::event_base_once(ev_base, sock.get(), EV_READ, accept_event, this, &ev_timeout);
+    ::event_base_loop(ev_base, EVLOOP_ONCE);
+  }
+#endif
+
   for (int i=0; i<nthreads; i++) {
     ths[i]->join();
   }
@@ -105,6 +149,11 @@ bool rpc_server::running() const
 
 void rpc_server::stop()
 {
+#if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
+  if (serv_running && ev_base) {
+    event_base_loopexit(ev_base, NULL);
+  }
+#endif
   serv_running = false;
   close();
 }
@@ -112,9 +161,14 @@ void rpc_server::stop()
 void rpc_server::process()
 {
   while(serv_running) {
-    int s;
+    int s = -1;
+#if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
+    if (!accept_queue.pop(s, event_interval_sec))
+      continue;
+#else
     NO_INTR(s, ::accept(sock.get(), NULL, NULL));
     if (FAILED(s)) { continue; }
+#endif
     socket ns(s);
 
     ns.set_nodelay(true);
@@ -149,6 +203,20 @@ void rpc_server::process()
     }
   }
 }
+
+#if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
+void rpc_server::accept_event(int listen_fd, short event, void *arg)
+{
+  if (event & EV_READ) {
+    int s;
+    rpc_server *server = reinterpret_cast<rpc_server*>(arg);
+    NO_INTR(s, ::accept(listen_fd, NULL, NULL));
+    if (FAILED(s)) return;
+
+    server->accept_queue.push(s);
+  }
+}
+#endif
 
 void rpc_server::add(const std::string &name,
     pfi::lang::shared_ptr<invoker_base> invoker)

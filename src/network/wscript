@@ -14,6 +14,7 @@ def options(opt):
                  help = 'specify the root directory for msgpack library')
   
   opt.recurse(subdirs)
+  opt.recurse('mprpc')
 
 def configure(conf):
   conf.env.BUILD_MPRPC = False
@@ -37,6 +38,8 @@ def configure(conf):
         conf.env.BUILD_MPRPC = True
 
   conf.recurse(subdirs)
+  if conf.env.BUILD_MPRPC:
+    conf.recurse('mprpc')
 
 def build(bld):
   bld.recurse(subdirs)
