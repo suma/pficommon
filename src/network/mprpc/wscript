@@ -11,7 +11,7 @@ def configure(conf):
     # check libevent 2.x
     if not conf.check_cfg(package='libevent', args='--cflags --libs', mandatory = False):
       # check event.h(1.x and 2.x)
-      conf.check_cxx(header_name = 'event.h', lib = 'event', uselib_store = 'LIBEVENT', mandatory = Options.options.enable_libevent)
+      conf.check_cxx(header_name = 'event.h', lib = 'event', uselib_store = 'LIBEVENT', mandatory = True)
 
 def build(bld):
   bld.install_files('${HPREFIX}/network/mprpc', [
