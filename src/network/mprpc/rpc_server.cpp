@@ -88,7 +88,7 @@ rpc_server::~rpc_server()
 {
 #if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
   if (ev_base) {
-    event_base_free(ev_base);
+    ::event_base_free(ev_base);
   }
 #endif
 }
@@ -151,7 +151,7 @@ void rpc_server::stop()
 {
 #if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
   if (serv_running && ev_base) {
-    event_base_loopexit(ev_base, NULL);
+    ::event_base_loopexit(ev_base, NULL);
   }
 #endif
   serv_running = false;
