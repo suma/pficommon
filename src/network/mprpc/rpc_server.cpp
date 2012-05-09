@@ -45,17 +45,15 @@
 #include "../../system/syscall.h"
 #include "../../concurrent/thread.h"
 
-#if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
 namespace {
 const double kEventLoopDefaultIntervalSec = 5.0;
-const double kEventLoopMinimumIntervalSec = 0.01;
 }
-#endif
 
 namespace pfi {
 namespace network {
 namespace mprpc {
 
+const double rpc_server::kEventLoopMinimumIntervalSec = 0.01;
 
 basic_server::basic_server() { }
 
@@ -76,9 +74,9 @@ bool basic_server::create(uint16_t port, int backlog)
 
 rpc_server::rpc_server(double timeout_sec) :
   timeout_sec(timeout_sec),
+  event_interval_sec(kEventLoopDefaultIntervalSec),
   serv_running(false)
 #if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
-  , event_interval_sec(kEventLoopDefaultIntervalSec)
   , ev_base(NULL)
   , accept_queue(4096)
 #endif
@@ -96,9 +94,12 @@ rpc_server::~rpc_server()
 void rpc_server::set_event_interval(double interval_sec)
 {
   // set interval seconds of event loop and pcbuf
-#if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
   event_interval_sec = std::max(kEventLoopMinimumIntervalSec, interval_sec);
-#endif
+}
+
+double rpc_server::event_interval() const
+{
+  return event_interval_sec;
 }
 
 bool rpc_server::serv(uint16_t port, int nthreads)

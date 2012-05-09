@@ -78,10 +78,18 @@ static void server_thread(testrpc_server *ser)
   ser->serv(kTestRPCPort, kServThreads);
 }
 
+TEST(mprpc, mprpc_event_interval)
+{
+  testrpc_server ser(kServerTimeout);
+  EXPECT_NE(rpc_server::kEventLoopMinimumIntervalSec, ser.event_interval());
+  ser.set_event_interval(rpc_server::kEventLoopMinimumIntervalSec);
+  ASSERT_EQ(rpc_server::kEventLoopMinimumIntervalSec, ser.event_interval());
+}
+
 TEST(mprpc, mprpc_test)
 {
   testrpc_server ser(kServerTimeout);
-  ser.set_event_interval(0.01);
+  ser.set_event_interval(rpc_server::kEventLoopMinimumIntervalSec);
   thread t(pfi::lang::bind(&server_thread, &ser));
   t.start();
 
@@ -155,7 +163,7 @@ TEST(mprpc, mprpc_test)
 TEST(mprpc, mprpc_server_timeout_test)
 {
   testrpc_server ser(kTestTimeout);
-  ser.set_event_interval(0.01);
+  ser.set_event_interval(rpc_server::kEventLoopMinimumIntervalSec);
   thread t(pfi::lang::bind(&server_thread, &ser));
   t.start();
 
@@ -228,7 +236,7 @@ static void struct_server_thread(test_struct_rpc_server *ser)
 TEST(mprpc, test_struct)
 {
   test_struct_rpc_server ser(kServerTimeout);
-  ser.set_event_interval(0.01);
+  ser.set_event_interval(rpc_server::kEventLoopMinimumIntervalSec);
   thread t(pfi::lang::bind(&struct_server_thread, &ser));
   t.start();
 

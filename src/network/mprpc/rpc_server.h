@@ -37,7 +37,6 @@
 #include <map>
 #include <string>
 
-// TODO: add include path to wscript
 #if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
 #include "../../concurrent/pcbuf.h"
 #include <event.h>
@@ -71,10 +70,16 @@ protected:
 
 class rpc_server : public basic_server {
 public:
+  static const double kEventLoopMinimumIntervalSec;
+
+public:
   rpc_server(double timeout_sec);
   ~rpc_server();
 
+  // Must call set_event_interval only before execute serv.
+  // Don't call set_event_interval when server running.
   void set_event_interval(double event_internal_sec);
+  double event_interval() const;
   bool serv(uint16_t port, int nthreads);
   bool running() const;
   void stop();
@@ -85,10 +90,10 @@ public:
 
 private:
   double timeout_sec;
+  double event_interval_sec;
   volatile bool serv_running;
 
 #if defined(HAVE_EVENT) || defined(HAVE_EVENT_H)
-  double event_interval_sec;
   struct event ev_accept;
   struct event_base *ev_base;
   pfi::concurrent::pcbuf<int> accept_queue;
